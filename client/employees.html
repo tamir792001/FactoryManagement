@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Employees</title>
+</head>
+<script>
+function fillTable(empArray){
+    const tbody = document.getElementById('tbody')
+    tbody.innerHTML = ""
+    empArray.forEach(emp => {
+                                const newEmployeeRow = document.createElement('tr')
+
+                                const name = document.createElement('td')
+                                const link = document.createElement('a')
+                                link.href = "EditEmployee.html?fname=" + emp.Fname + "&lname=" + emp.Lname + "&empDepartmentID=" + emp.departmentID 
+                                link.innerText = emp.Fname + " " + emp.Lname
+                                name.appendChild(link)
+
+                                const department = document.createElement('td')
+                                const link2 = document.createElement('a')
+                                link2.href = "EditDepartment.html?dname=" + emp.departmentName
+                                link2.innerText = emp.departmentName
+                                department.appendChild(link2)
+
+                                //code for shifts
+                                const shifts = document.createElement('td')
+                                const shiftsList = document.createElement('ul')
+                                if (emp.relatedShifts.length > 0)
+                                {
+                                    emp.relatedShifts.forEach(shift => {
+                                        let s = document.createElement('li')
+                                        s.innerText = "Date: " + shift.Date + "\nFrom: " + shift.SH + "\nTo: " + shift.EH
+                                        shiftsList.appendChild(s)
+                                    })
+                                }
+                                else
+                                {
+                                    let s = document.createElement('li')
+                                    s.innerText = "No Shifts Yet"
+                                    shiftsList.appendChild(s)
+                                }
+                                shifts.appendChild(shiftsList)
+
+                                
+
+                                newEmployeeRow.append(name, department, shifts)
+                                tbody.appendChild(newEmployeeRow)   
+                            })  
+}
+async function getAllEmp()
+{
+    document.getElementById('loggedUser').innerHTML = `Hello, ${JSON.parse(sessionStorage.getItem('userInformation'))?.fullname}`
+    const resp = await fetch('http://localhost:5000/employees', {headers :{"x-access-token" : sessionStorage.getItem("token"), "userInformation" : sessionStorage.getItem("userInformation")}})
+    const allEmp = await resp.json()
+    if (!Object.keys(allEmp).includes("error"))
+    {   
+        const departmentsList = document.getElementById('dlist')
+        
+        let dNames = []  
+        const tbody = document.getElementById('tbody')
+        allEmp.forEach(emp => {
+                                if (!dNames.includes(emp.departmentName))
+                                {
+                                    dNames.push(emp.departmentName)
+                                    d = document.createElement('option')
+                                    d.value = emp.departmentName
+                                    d.innerText = emp.departmentName
+                                    departmentsList.appendChild(d) 
+                                }
+        }) 
+        fillTable(allEmp);
+        departmentsList.addEventListener("change", function(){
+            if (departmentsList.value != "all"){
+                selectedDepartmentEmps = allEmp.filter(emp => departmentsList.value == emp.departmentName)
+                fillTable(selectedDepartmentEmps);
+            }
+            else{
+                fillTable(allEmp);
+            }   
+        });
+    }  
+    else
+    {
+       tokenNotValid() 
+    }  
+    
+}
+function toAddEmployeePage()
+{
+    document.location.href = "AddEmployee.html"
+}
+function tokenNotValid()
+{
+    alert('UNAUTHORIZED USER\nPlease make sure to log in correctly')
+    document.location.href = "login.html"
+}
+function logout(){
+    sessionStorage.clear()
+    document.location.href = 'login.html'
+}
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+<body onload="getAllEmp()" class="container">
+    <div>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <a class="navbar-brand" href="factory.html">Factory</a>
+            <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="departments.html">Departments</a></li>
+                <li class="nav-item"><a class="nav-link" href="employees.html">Employees</a></li>
+                <li class="nav-item"><a class="nav-link" href="shifts.html">Shifts</a></li>
+            </ul>
+        </nav>
+    </div>
+<h2 id="loggedUser" >Hello, Guest</h2>
+<input type="button" value="Log Out" class="btn btn-primary" onclick="logout()">
+<button type="button" id="newEmployee" onclick="toAddEmployeePage()">Add New Employee</button>
+<select name="departmentsList" id="dlist">
+    <option value="all">All Departments</option>
+</select>
+<div>
+    <table id="table" class="table table-striped">
+        <thead id="thead">
+            <tr>
+                <th scope="col">Employee Name</th>
+                <th scope="col">Department</th>
+                <th scope="col">Related Shifts</th>
+            </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+    </table>
+</div>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Edit Employee</title>
+</head>
+<script>
+async function deleteEmployee()
+{
+    const employeeID = parseInt(document.getElementById('Eid').value)
+    const fetchParams = {
+                            method : "DELETE",
+                            headers : {"Content-Type" : "application/json", "x-access-token" : sessionStorage.getItem("token"), "userInformation" : sessionStorage.getItem("userInformation")},
+                        }
+    const resp = await fetch('http://localhost:5000/employees/' + employeeID, fetchParams)
+    const data = await resp.json()
+    console.log(Object.keys(data))
+    if (!Object.keys(data).includes("error"))
+    {
+        messegeManagment(resp,data)
+        document.location.href = "employees.html"
+    }
+    else
+    {
+        tokenNotValid()
+    }
+}
+async function getEmployee()
+{
+    document.getElementById('loggedUser').innerHTML = `Hello, ${JSON.parse(sessionStorage.getItem('userInformation'))?.fullname}`
+    const resp = await fetch('http://localhost:5000/employees' + document.location.search, {headers : {"x-access-token" : sessionStorage.getItem("token"), "userInformation" : sessionStorage.getItem("userInformation")}})
+    const empData = await resp.json()
+    if (!Object.keys(empData).includes("error"))
+    {
+        document.getElementById('Fname').value = empData.Fname
+        document.getElementById('Lname').value = empData.Lname
+        document.getElementById('age').value = empData.age
+        document.getElementById('Did').value = empData.departmentID
+        document.getElementById('Eid').value = empData.employeeID
+        document.getElementById('Eid').disabled = true
+    }
+    else
+    {
+        tokenNotValid()
+    }
+}
+async function updateEmployee()
+{
+    const obj = {
+                    Fname : document.getElementById('Fname').value,
+                    Lname : document.getElementById('Lname').value,
+                    age : document.getElementById('age').value,
+                    department : document.getElementById('Did').value,
+                    employeeID : document.getElementById('Eid').value
+                }
+    if (validateInput(obj.Fname, obj.Lname, obj.age, obj.employeeID, obj.department))
+    {
+        obj.departmentID = parseInt(obj.departmentID)
+        obj.employeeID = parseInt(obj.employeeID)
+        const fetchParams = {
+                                method: 'PUT',
+                                headers : {"Content-Type" : "application/json", "x-access-token" : sessionStorage.getItem("token"), "userInformation" : sessionStorage.getItem("userInformation")},
+                                body : JSON.stringify(obj)
+                            }
+        const resp = await fetch('http://localhost:5000/employees/' + obj.employeeID, fetchParams)
+        const data = await resp.json()
+        if (!Object.keys(data).includes("error"))
+        {
+            hideMessage()
+            messegeManagment(resp, data)
+        }
+        else
+        {
+            tokenNotValid()
+        }
+    }
+    else
+    {
+        hideMessage()
+        messegeManagment()
+    }
+
+}
+function validateInput(fname, lname, age, empID, department)
+{
+    if (fname && lname && age && empID && department){
+        if (/^[a-zA-Z]+$/.test(fname+lname) && !isNaN(age)){
+            return true;
+        }
+    }
+    return false;
+}
+function messegeManagment(resp,data){
+    if (resp !== undefined){
+        if (resp.ok){ 
+            showSuccess(data)
+        }
+        else{
+            showError(data)
+        }
+    }
+    else{
+        showError()
+    }
+}
+function showSuccess(respObj)
+{
+    hideMessage()
+    const successDiv = document.getElementById('success')
+    successDiv.style.display = "block"
+    successDiv.innerText = respObj.status
+}
+function showError(respObj)
+{
+    hideMessage()
+    const errorDiv = document.getElementById('error')
+    errorDiv.style.display = "block"
+    if (respObj === undefined){
+        errorDiv.innerText = "Oops!\n"+
+                             "Please fill the fields correctly\n"+
+                             "First/Last are words,\n"+
+                             "Age and Employee ID are numbers"
+    }
+    else{
+        console.log(respObj)
+        errorDiv.innerText = respObj.status
+    }
+    
+
+}
+function hideMessage()
+{
+    const errorDiv = document.getElementById('error')
+    errorDiv.style.display = "None"
+    const successDiv = document.getElementById('success')
+    successDiv.style.display = "None"
+}
+function tokenNotValid()
+{
+    alert('UNAUTHORIZED USER\nPlease make sure to log in correctly')
+    document.location.href = "login.html"
+}
+function logout(){
+    sessionStorage.clear()
+    document.location.href = 'login.html'
+}
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+<body onload="getEmployee()" class="container">
+    <div>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <a class="navbar-brand" href="factory.html">Factory</a>
+            <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="departments.html">Departments</a></li>
+                <li class="nav-item"><a class="nav-link" href="employees.html">Employees</a></li>
+                <li class="nav-item"><a class="nav-link" href="shifts.html">Shifts</a></li>
+            </ul>
+        </nav>
+    </div>
+    <h2 id="loggedUser" >Hello, Guest</h2>
+    <input type="button" value="Log Out" class="btn btn-primary" onclick="logout()">
+    <div>
+        <form class="mb-3 col-sm-5">
+            <div>
+                <label for="Fname" class="form-label">First Name</label>
+                <input id="Fname" type="text" name="Fname" class="form-control" required>
+            </div>
+            <div>
+                <label for="Lname" class="form-label">Last Name</label>
+                <input id="Lname" type="text" name="Lname" class="form-control" required>
+            </div>
+            <div>
+                <label for="age" class="form-label">Age</label>
+                <input id="age" type="text" name="age" class="form-control" required>
+            </div>
+            <div>
+                <label for="Did" class="form-label">Department Name or ID</label>
+                <input id="Did" type="text" name="Did" class="form-control" required>
+            </div>
+            <div>
+                <label for="Eid" class="form-label">Employee ID</label>
+                <input id="Eid" type="text" name="Eid" class="form-control" required>
+            </div>
+            <div id="error" class="alert alert-danger" role="alert" style="display: none;"></div>
+            <div id="success" class="alert alert-success" role="alert" style="display: none;"></div>
+            <div>
+                <input id="updateBtn" type="button" value="Update" class="btn btn-primary mb-3" onclick="updateEmployee()" >
+                <input id="deleteBtn" type="button" value="Delete" class="btn btn-primary mb-3" onclick="deleteEmployee()" >
+            </div>
+        </form>
+    </div>
+    
+</body>
+</html>

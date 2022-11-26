@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Edit Department</title>
+</head>
+<script>
+async function addEmployeeToCurrentD(){
+    const obj = {departmentID : parseInt(document.getElementById('Did').value)}
+    let empName = document.getElementById('emplist').value
+    let empDepartmentLabel = document.getElementById(empName).parentElement.label
+    empName = empName.split(" ")
+    const fname = empName[0]
+    const lname = empName[1]
+    const empDepartmentID = empDepartmentLabel.slice(-1)
+    const fetchParams = {
+                            method : "PUT",
+                            headers : {"Content-Type" : "application/json", "x-access-token" : sessionStorage.getItem("token"), "userInformation" :sessionStorage.getItem("userInformation")},
+                            body : JSON.stringify(obj)
+                        }
+    const resp = await fetch('http://localhost:5000/employees?fname=' + fname + "&lname=" + lname + "&empDepartmentID=" + empDepartmentID, fetchParams)
+    const data = await resp.json()
+    if (!Object.keys(data).includes("error"))
+    {
+        messegeManagment(resp,data)
+        document.location.href = "departments.html"
+    }
+    else
+    {
+        tokenNotValid()
+    }
+
+}
+async function deleteDepartment()
+{
+    const departmentID = parseInt(document.getElementById('Did').value)
+
+    const fetchParams = {
+                            method : "DELETE",
+                            headers : {"Content-Type" : "application/json", "x-access-token" : sessionStorage.getItem("token"), "userInformation" : sessionStorage.getItem("userInformation")},
+                        }
+    const resp = await fetch('http://localhost:5000/departments/' + departmentID, fetchParams)
+    const data = await resp.json()
+    if(!Object.keys(data).includes("error"))
+    {
+        messegeManagment(resp,data)
+        document.location.href = "departments.html"
+    }
+    else
+    {
+        tokenNotValid()
+    }
+}
+async function getDepartment()
+{
+    document.getElementById('loggedUser').innerHTML = `Hello, ${JSON.parse(sessionStorage.getItem('userInformation'))?.fullname}`;
+    console.log(document.location.search)
+    const resp = await fetch('http://localhost:5000/departments/edit' + document.location.search, {headers: {"x-access-token" : sessionStorage.getItem("token"),
+                                                                                                             "userInformation" : sessionStorage.getItem("userInformation")
+                                                                                                            }})
+    const departmentData = await resp.json()
+    if(!Object.keys(departmentData).includes("error"))
+    {  
+        document.getElementById('Dname').value = departmentData.name
+        document.getElementById('Dmang').value = departmentData.manager
+        document.getElementById('Did').value = departmentData.departmentID
+        document.getElementById('Did').disabled = true
+
+        const emplist = document.getElementById('emplist')
+        const externalEmployees = departmentData.externalEmployeesList
+        if (externalEmployees.length > 0){
+            let departmentNodes = []
+            externalEmployees.forEach(employee => {
+                let dNode = departmentNodes.filter(d => d.label == "Department: " + employee.departmentID)
+                if (dNode.length == 0)
+                {
+                    dNode = document.createElement('optgroup')
+                    dNode.label = "Department: " + employee.departmentID
+                    departmentNodes.push(dNode)
+                }
+                else{
+                    dNode = dNode[0]
+                }
+                const emp = document.createElement('option')
+                emp.id = employee.Fname + " " + employee.Lname
+                emp.value = employee.Fname + " " + employee.Lname
+                emp.innerText = employee.Fname + " " + employee.Lname
+                dNode.appendChild(emp)
+                emplist.appendChild(dNode)
+            });
+        }
+    }
+    else
+    {
+        tokenNotValid()
+    }
+}
+async function updateDepartment(){
+    const obj = {name : document.getElementById('Dname').value,
+                 manager : document.getElementById('Dmang').value,
+                 departmentID : parseInt(document.getElementById('Did').value)}
+    if (validateInput(obj.name, obj.manager))
+    {
+        obj.manager = parseInt(obj.manager)
+        const fetchParams = {
+                                method: "PUT",
+                                headers : {"Content-Type" : "application/json", "x-access-token" : sessionStorage.getItem("token"), "userInformation" : sessionStorage.getItem("userInformation")},
+                                body: JSON.stringify(obj)
+                            }
+        
+        let resp = await fetch("http://localhost:5000/departments/" + obj.departmentID, fetchParams)
+        let data = await resp.json()
+        if (!Object.keys(data).includes("error"))
+        {
+            hideMessage()
+            messegeManagment(resp,data)
+        }
+        else{
+            tokenNotValid()
+        }
+    }
+    else
+    {
+        hideMessage()
+        messegeManagment()
+    }
+}
+function validateInput(dname, dmang)
+{
+    if (dname && dmang){
+        if (isNaN(dname) && !isNaN(dmang)){
+            return true;
+        }
+    }
+    return false;
+}
+function messegeManagment(resp,data){
+    if (resp !== undefined){
+        if (resp.ok){  
+            showSuccess(data)
+        }
+        else{
+            showError(data)
+        }
+    }
+    else{
+        showError()
+    }
+}
+function showSuccess(respObj)
+{
+    hideMessage()
+    const successDiv = document.getElementById('success')
+    successDiv.style.display = "block"
+    successDiv.innerText = respObj.status
+}
+function showError(respObj)
+{
+    hideMessage()
+    const errorDiv = document.getElementById('error')
+    errorDiv.style.display = "block"
+    if (respObj === undefined){
+        errorDiv.innerText = "Oops!\n"+"Please fill the fields correctly\n"+"Name is word, ID and Manager are numbers"
+    }
+    else{
+        console.log(respObj)
+        errorDiv.innerText = respObj.status
+    }
+    
+
+}
+function hideMessage()
+{
+    const errorDiv = document.getElementById('error')
+    errorDiv.style.display = "None"
+    const successDiv = document.getElementById('success')
+    successDiv.style.display = "None"
+}
+function tokenNotValid()
+{
+    alert('UNAUTHORIZED USER\nPlease make sure to log in correctly')
+    document.location.href = "login.html"
+}
+function logout(){
+    sessionStorage.clear()
+    document.location.href = 'login.html'
+}
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+<body onload="getDepartment()" class="container">
+    <div>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <a class="navbar-brand" href="factory.html">Factory</a>
+            <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="departments.html">Departments</a></li>
+                <li class="nav-item"><a class="nav-link" href="employees.html">Employees</a></li>
+                <li class="nav-item"><a class="nav-link" href="shifts.html">Shifts</a></li>
+            </ul>
+        </nav>
+    </div>
+<h2 id="loggedUser">Hello, Guest</h2>
+<input type="button" value="Log Out" class="btn btn-primary" onclick="logout()">
+<div>
+    <form class="mb-3 col-sm-5">
+        <div>
+            <label for="Dname" class="form-label">Department Name</label>
+            <input id="Dname" type="text" name="Dname" class="form-control" required>
+        </div>
+        <div>
+            <label for="Dmang" class="form-label">Department Manger</label>
+            <input id="Dmang" type="text" name="Dmang" class="form-control" required>
+        </div>
+        <div>
+            <label for="Did" class="form-label">Department ID</label>
+            <input id="Did" type="text" name="Did" class="form-control" required>
+        </div>
+    
+        <div id="error" class="alert alert-danger" role="alert" style="display: none;"></div>
+        <div id="success" class="alert alert-success" role="alert" style="display: none;"></div>
+        <div>
+            <input id="updateBtn" type="button" value="Update" class="btn btn-primary mb-3" onclick="updateDepartment()" >
+            <input id="deleteBtn" type="button" value="Delete" class="btn btn-primary mb-3" onclick="deleteDepartment()" >
+        </div>
+        <div>
+            <select name="employeesList" id="emplist" class="form-select">
+            </select>
+        </div>   
+        <div>
+            <input id="addBtn" type="button" value="Add Employee" class="btn btn-primary mb-3" onclick="addEmployeeToCurrentD()" >
+        </div>    
+    </form>
+</div>
+</body>
+</html>

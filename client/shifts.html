@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Shifts</title>
+</head>
+<script>
+function fillTable(allShiftsData)
+{
+    const tbody = document.getElementById('tbody');
+    let shiftCounter = 1;
+    allShiftsData.forEach(shift => {
+                                    const newRow = document.createElement('tr')
+                                    newRow.id = "row" + shiftCounter
+
+                                    const shiftID = document.createElement('td')
+                                    const idInput = document.createElement('input')
+                                    idInput.id = "shift"+shiftCounter
+                                    idInput.name = shift.shiftID
+                                    idInput.type = "text"
+                                    idInput.disabled = true
+                                    idInput.classList.add("form-control")
+                                    idInput.value = shift.shiftID
+                                    shiftID.appendChild(idInput)
+
+                                    const date = document.createElement('td')
+                                    const dateInput = document.createElement('input')
+                                    dateInput.id = "date"+shiftCounter
+                                    dateInput.name = shift.Date
+                                    dateInput.type = "date"
+                                    dateInput.disabled = true
+                                    dateInput.classList.add("form-control")
+                                    dateInput.value = shift.Date
+                                    date.appendChild(dateInput)
+
+                                    const startingHour = document.createElement('td')
+                                    const shInput = document.createElement('input')
+                                    shInput.id = "sh"+shiftCounter
+                                    shInput.name = shift.SH
+                                    shInput.type = "number"
+                                    shInput.min = "0"
+                                    shInput.max = "23"
+                                    shInput.disabled = true
+                                    shInput.classList.add("form-control")
+                                    shInput.value = shift.SH
+                                    startingHour.appendChild(shInput)
+
+                                    const endingHour = document.createElement('td')
+                                    const ehInput = document.createElement('input')
+                                    ehInput.id = "eh"+shiftCounter
+                                    ehInput.name = shift.EH
+                                    ehInput.type = "number"
+                                    ehInput.min = "0"
+                                    ehInput.max = "23"
+                                    ehInput.disabled = true
+                                    ehInput.classList.add("form-control")
+                                    ehInput.value = shift.EH
+                                    endingHour.appendChild(ehInput)
+                                    
+                                    //const relatedEmps = allEmpData.filter(emp => {emp.})
+                                    const relatedEmps = document.createElement('td')
+                                    const empList = document.createElement('ul')
+                                    const assignments = shift.assignments[0]
+                                    let emp;
+                                    //problem with reading the array
+                                    if (assignments.employeesList.length > 0)
+                                    {
+                                        assignedEmpsIDs = assignments.employeesList
+                                        assignedEmpsIDs.forEach(empID => {
+                                            emp = document.createElement('li')
+                                            emp.innerText = empID
+                                            empList.appendChild(emp)
+                                        })
+                                    }
+                                    else
+                                    {
+                                        emp = document.createElement('li')
+                                        emp.innerText = "No Assigned Employees Yet"
+                                        empList.appendChild(emp)
+                                    }
+                                    relatedEmps.appendChild(empList)
+                                    
+                                    const edit = document.createElement('td')
+                                    const editBtn = document.createElement('input')
+                                    editBtn.id = "editBtn"+shiftCounter
+                                    editBtn.classList.add("btn","btn-primary")
+                                    editBtn.value = "Edit"
+                                    editBtn.type = "button"
+                                    editBtn.addEventListener("click", editBtnClicked)
+                                    edit.appendChild(editBtn)
+
+                                    newRow.append(shiftID, date, startingHour, endingHour, relatedEmps, edit)
+                                    tbody.appendChild(newRow)
+                                    shiftCounter++
+    })
+}
+function fillAssignSection(allShiftsData, allEmpsData)
+{
+    //building the emloyees select DOM
+    const empsSelectList = document.getElementById('emplist')
+    let department_OptgroupNodes = []
+    allEmpsData.forEach(emp => {
+                                let dNode = department_OptgroupNodes.filter(d => d.label == emp.departmentName)
+                                if (dNode.length == 0)
+                                {
+                                    dNode = document.createElement('optgroup')
+                                    dNode.label = emp.departmentName
+                                    empsSelectList.appendChild(dNode)
+                                    department_OptgroupNodes.push(dNode)  
+                                }
+                                else
+                                {
+                                    dNode = dNode[0]
+                                }
+                                const employee = document.createElement('option')
+                                employee.id = emp.employeeID
+                                employee.value = emp.employeeID
+                                employee.innerText = emp.Fname + " " + emp.Lname
+                                dNode.appendChild(employee)                         
+    })
+    //building the shifts select DOM
+    const shiftlist = document.getElementById('shiftlist')
+    let shiftOption
+    allShiftsData.forEach(shift => {
+                                    shiftOption = document.createElement('option')
+                                    shiftOption.value = shift.shiftID
+                                    shiftOption.innerText = "Shift " + shift.shiftID
+                                    shiftlist.appendChild(shiftOption)
+    })
+}
+async function assignEmployee()
+{
+    const obj = {
+                    shiftID : document.getElementById('shiftlist').value,
+                    employeeID : document.getElementById('emplist').value
+                }
+    if (obj.shiftID && obj.employeeID)
+    {
+        const fetchParams = {
+                                method : "PUT",
+                                headers : {"Content-Type" : "application/json", "x-access-token" : sessionStorage.getItem("token"), "userInformation" : sessionStorage.getItem("userInformation")}
+                            }
+        const resp = await fetch(`http://localhost:5000/shifts/assignments?shiftID=${parseInt(obj.shiftID)}&empID=${parseInt(obj.employeeID)}`, fetchParams)
+        const data = await resp.json()
+        if (!Object.keys(data).includes("error"))
+        {
+            if (resp.ok){
+                document.location.reload()
+            }
+            else{
+                hideMessage()
+                messegeManagment(resp,data)
+            }
+        }
+        else{
+            tokenNotValid()
+        }
+        
+    }
+
+
+}
+async function getAllShifts()
+{
+    document.getElementById('loggedUser').innerHTML = `Hello, ${JSON.parse(sessionStorage.getItem('userInformation'))?.fullname}`
+    setDateMinMax()
+    const resp1 = await fetch('http://localhost:5000/shifts', {headers : {"x-access-token" : sessionStorage.getItem("token"), "userInformation" : sessionStorage.getItem("userInformation")}})
+    const allShifts = await resp1.json()
+    if (!Object.keys(allShifts).includes("error"))
+    {  
+        fillTable(allShifts)
+    }
+    else
+    {
+        tokenNotValid()
+    }
+    const resp2 = await fetch('http://localhost:5000/employees', {headers : {"x-access-token" : sessionStorage.getItem("token"), "userInformation" : sessionStorage.getItem("userInformation")}})
+    const allEmps = await resp2.json()
+    if (!Object.keys(allEmps).includes("error"))
+    {
+        fillAssignSection(allShifts,allEmps)
+    }
+    else{
+        tokenNotValid()
+    }
+}
+
+function ableDisable(row){
+    document.getElementById('date'+row).disabled = !document.getElementById('date'+row).disabled
+    document.getElementById('sh'+row).disabled = !document.getElementById('sh'+row).disabled
+    document.getElementById('eh'+row).disabled = !document.getElementById('eh'+row).disabled
+}
+
+function editBtnClicked(event){
+    const selectedBtn = event.currentTarget
+    selectedBtn.value = "Save"
+    const rowNum = selectedBtn.id.charAt(selectedBtn.id.length -1)
+    ableDisable(rowNum)
+    selectedBtn.removeEventListener("click", editBtnClicked)
+    selectedBtn.addEventListener("click", updateShift)
+
+}
+async function updateShift(event)
+{
+    const selectedBtn = event.currentTarget
+    selectedBtn.value = "Edit"
+    selectedBtn.removeEventListener("click", updateShift)
+    selectedBtn.addEventListener("click", editBtnClicked)
+    
+    const selectedBtnID = selectedBtn.id
+    const rowNum = selectedBtnID.charAt(selectedBtnID.length -1)
+    ableDisable(rowNum)
+    const obj = {
+                    shiftID : document.getElementById('shift'+rowNum).value,
+                    Date : document.getElementById('date'+rowNum).value,
+                    SH : document.getElementById('sh'+rowNum).value,
+                    EH : document.getElementById('eh'+rowNum).value
+                }
+    if (validateInput(obj.shiftID, obj.Date, obj.SH, obj.EH))
+    {
+        obj.shiftID = parseInt(obj.shiftID)
+        obj.SH = parseInt(obj.SH)
+        obj.EH = parseInt(obj.EH)
+        const fetchParams = {
+                                method : "PUT",
+                                headers: {"Content-Type" : "application/json", "x-access-token" : sessionStorage.getItem("token"), "userInformation" : sessionStorage.getItem("userInformation")},
+                                body : JSON.stringify(obj)
+                            }
+        const resp = await fetch('http://localhost:5000/shifts/' + obj.shiftID, fetchParams)
+        const data = await resp.json()
+        if (!Object.keys(data).includes("error"))
+        {
+            hideMessage()
+            messegeManagment(resp,data)
+        }
+        else
+        {
+            tokenNotValid()
+        }
+    }
+    else
+    {
+        hideMessage()
+        messegeManagment()
+    }
+   
+
+
+}
+async function createShift()
+{
+    const obj = {
+                    shiftID : document.getElementById('shiftID').value,
+                    Date : document.getElementById('date').value,
+                    SH : document.getElementById('sh').value,
+                    EH : document.getElementById('eh').value
+                }
+    if (validateInput(obj.shiftID, obj.Date, obj.SH, obj.EH))
+    {
+        obj.shiftID = parseInt(obj.shiftID)
+        obj.SH = parseInt(obj.SH)
+        obj.EH = parseInt(obj.EH)
+        const fetchParams = {
+                                method : "POST",
+                                headers: {"Content-Type" : "application/json", "x-access-token" : sessionStorage.getItem("token"), "userInformation" : sessionStorage.getItem("userInformation")},
+                                body : JSON.stringify(obj)
+                            }
+        const resp = await fetch('http://localhost:5000/shifts', fetchParams)
+        const data = await resp.json()
+        if (!Object.keys(data).includes("error"))
+        {
+            if (resp.ok)
+            {
+                document.location.reload()
+            }
+            else
+            {
+                hideMessage()
+                messegeManagment(resp,data)
+            }
+        }
+        else{
+            tokenNotValid()
+        }
+    }
+    else
+    {
+        hideMessage()
+        messegeManagment()
+    }
+}
+function validateInput(id, date, sh, eh)
+{
+    if (id && date && sh && eh){   
+        todayStr = getToday()
+        const todayArray = todayStr.split("-")
+        const [todayYear, todayMonth, todayDay] = todayArray
+        const dateArray = date.split("-")
+        const [givenYear, givenMonth, givenDay] = dateArray
+        if (sh > 23 || eh > 23)
+        {
+            return false
+        }
+        if (givenYear < todayYear)
+        {
+            return false;
+        }
+        else if (givenYear == todayYear && givenMonth < todayMonth)
+        {
+            return false;
+        }
+        else if (givenYear == todayYear && givenMonth == todayMonth && givenDay < todayDay)
+        {
+            return false;
+        }
+        else
+        {
+            return true
+        }
+
+
+    }
+    return false;
+}
+function messegeManagment(resp,data){
+    if (resp !== undefined){
+        if (resp.ok){ 
+            showSuccess(data)
+        }
+        else{
+            showError(data)
+        }
+    }
+    else{
+        showError()
+    }
+}
+function showSuccess(respObj)
+{
+    const successDiv = document.getElementById("success")
+    successDiv.style.display = "block"
+    successDiv.innerText = respObj.status
+}
+function showError(respObj)
+{
+    const errorDiv = document.getElementById("error")
+    errorDiv.style.display = "block"
+    if (respObj === undefined){
+        errorDiv.innerText = "Oops!\n"+
+                             "Please fill the fields correctly\n"+
+                             "Make sure date is not before today,\n"+
+                             "Starting&Ending hours are between 0-23\n"+
+                             "Item's not saved"
+    }
+    else{
+        errorDiv.innerText = respObj.status
+    }
+    
+
+}
+function hideMessage()
+{
+    const errorDiv = document.getElementById("error")
+    errorDiv.style.display = "None"
+    const successDiv = document.getElementById("success")
+    successDiv.style.display = "None"
+}
+function getToday()
+{
+
+    const dateObj = new Date();
+    let year = dateObj.getFullYear()
+    let month = dateObj.getMonth() + 1
+    let day = dateObj.getDate()
+    month < 10 ? month = "0" + month : ""
+    day <10 ? day = "0" + day : ""
+    return `${year}-${month}-${day}`
+}
+function setDateMinMax()
+{
+    const dateInput = document.getElementById('date')
+    dateInput.min = getToday()
+    dateInput.value = getToday()
+
+}
+function tokenNotValid()
+{
+    alert('UNAUTHORIZED USER\nPlease make sure to log in correctly')
+    document.location.href = "login.html"
+}
+function logout(){
+    sessionStorage.clear()
+    document.location.href = 'login.html'
+}
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
+<body onload="getAllShifts()" class="container">
+<div>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <a class="navbar-brand" href="factory.html">Factory</a>
+        <ul class="navbar-nav">
+            <li class="nav-item"><a class="nav-link" href="departments.html">Departments</a></li>
+            <li class="nav-item"><a class="nav-link" href="employees.html">Employees</a></li>
+            <li class="nav-item"><a class="nav-link" href="shifts.html">Shifts</a></li>
+        </ul>
+    </nav>
+</div>
+<h2 id="loggedUser">Hello, Guest</h2>
+<input type="button" value="Log Out" class="btn btn-primary" onclick="logout()">
+<div class="d-flex flex-column align-items-center">
+    <div id="error" class="alert alert-danger col-sm-8" role="alert" style="display: none;"></div>
+    <div id="success" class="alert alert-success col-sm-8" role="alert" style="display: none;"></div>
+    <table id="table" class="table table-striped">
+        <thead id="thead">
+            <tr>
+                <th scope="col">Shift ID</th>
+                <th scope="col">Date</th>
+                <th scope="col">Starting Hour</th>
+                <th scope="col">Ending Hour</th>
+                <th scope="col">Related Employees</th>
+                <th scope="col">Edit</th>
+            </tr>
+        </thead>
+        <tbody id="tbody">
+        </tbody>
+    </table>
+</div>
+
+<section style="border: gray 0.5px solid;">
+    <h1>Create New Shifts!</h1>
+    <form>
+        <div class="form-group row">
+            <div class="col-sm-2">
+                <label for="id" class="form-label">Shift ID</label>
+                <input id="shiftID" type="number" name="id" class="form-control" required>
+            </div>
+            <div class="col-sm-2">
+                <label for="date" class="form-label">Date</label>
+                <input id="date" type="date" name="date" class="form-control" required>
+            </div>
+            <div class="col-sm-2">
+                <label for="startingHour" class="form-label">Starting Hour</label>
+                <input id="sh" type="number" name="startingHour" min="0" max="23" placeholder="0-23" class="form-control" required>
+            </div>
+            <div class="col-sm-2">
+                <label for="endingHour" class="form-label">Ending Hour</label>
+                <input id="eh" type="number" name="endingHour" min="0" max="23" placeholder="0-23" class="form-control" required>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <input id="createBtn" type="button" name="createBtn" value="Create Shift!" class="btn btn-primary" onclick="createShift()" >
+        </div>
+    </form>
+</section>
+<br/><br/>
+<section>
+    <h1>Assign Employees To Shifts!</h1>
+    <p>Pick an employee, then a shift and click 'Assign'</p>
+    <form>
+        <div class="form-group">
+            <div class="col-sm-4">
+                <label for="emplist">Assign: </label>
+                <select name="employees" id="emplist" class="form-control">
+                </select>
+            </div>
+            <div class="col-sm-4">
+                <label for="shiftlist">To: </label>
+                <select name="shifts" id="shiftlist" class="form-control">
+                </select>
+            </div>
+            <div class="col-sm-4">
+                <input type="button" id="assignBtn" name="assignBtn" value="Assign" class="btn btn-primary" onclick="assignEmployee()">
+            </div>
+        </div>
+    </form>
+</section>
+<br/><br/>
+</body>
+</html>
